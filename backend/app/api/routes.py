@@ -220,7 +220,7 @@ async def simulation_reset(db: Session = Depends(get_db)) -> dict:
     db.commit()
     await manager.broadcast("reset", {"status": "ok"})
     await manager.broadcast("simulation", traffic_simulator.status())
-    await manager.broadcast("activity", {"message": "Simulation data reset", "level": "info"})
+    await manager.broadcast("activity", {"message": "State cleared", "level": "info"})
     return traffic_simulator.status()
 
 

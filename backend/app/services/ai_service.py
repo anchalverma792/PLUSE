@@ -17,11 +17,11 @@ class GroqAIService:
     def _offline_notice(self, task: str) -> dict[str, Any]:
         return {
             "summary": f"Groq analysis for {task} is ready to run once GROQ_API_KEY is configured.",
-            "root_cause": "No AI inference was executed because the Groq API key is not set. PulseRoot did not call any non-Groq AI provider.",
+            "root_cause": "No AI inference was executed because the Groq API key is not set. APY did not call any non-Groq AI provider.",
             "recommendations": [
                 "Set GROQ_API_KEY in backend/.env.",
                 "Restart uvicorn so the Groq client can authenticate.",
-                "Replay a playground incident to generate a fresh root-cause report.",
+                "Review the next live incident to generate a fresh root-cause report.",
             ],
         }
 
@@ -30,7 +30,7 @@ class GroqAIService:
             return self._offline_notice("incident root cause")
 
         prompt = f"""
-You are PulseRoot AI, an AI Reliability Engineer. Analyze this API incident.
+You are APY, an AI Reliability Engineer. Analyze this API incident.
 Return strict JSON with keys: summary, root_cause, recommendations, severity.
 Recommendations must be an array of concrete debugging steps.
 
@@ -64,7 +64,7 @@ Incident context:
             messages=[
                 {
                     "role": "system",
-                    "content": "You are PulseRoot AI. Be concise, technical, and action-oriented. Use only the provided incident/log context.",
+                    "content": "You are APY. Be concise, technical, and action-oriented. Use only the provided incident/log context.",
                 },
                 {"role": "user", "content": f"Context:\n{json.dumps(context, default=str)}\n\nQuestion: {message}"},
             ],

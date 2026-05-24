@@ -1,1 +1,1 @@
-"""PulseRoot AI backend package."""
+"""APY backend package."""

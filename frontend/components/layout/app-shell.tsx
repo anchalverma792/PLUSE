@@ -1,13 +1,20 @@
 "use client";
 
 import type { ReactNode } from "react";
-import { Activity, Bell, ChevronDown, Command, Search } from "lucide-react";
-import { Toaster } from "sonner";
+import { Activity, Bell, Command, Search } from "lucide-react";
+import { Toaster, toast } from "sonner";
 
 import { useAppState, type Environment } from "@/context/app-state";
 import { cn } from "@/lib/utils";
 
-const nav = ["Incidents", "Live Monitor", "AI Analysis", "Testing Playground", "Reports", "Integrations"];
+const nav = [
+  { label: "APIs", href: "#apis" },
+  { label: "Incidents", href: "#incidents" },
+  { label: "AI Analysis", href: "#ai-analysis" },
+  { label: "Reports", href: "#reports" },
+  { label: "Integrations", href: "#integrations" },
+];
+
 const environments: Array<{ value: Environment; label: string }> = [
   { value: "production", label: "Production" },
   { value: "staging", label: "Staging" },
@@ -17,56 +24,59 @@ const environments: Array<{ value: Environment; label: string }> = [
 export function AppShell({ children, connected = false }: { children: ReactNode; connected?: boolean }) {
   const { environment, setEnvironment, search, setSearch } = useAppState();
 
+  const showNotificationState = () => {
+    toast(connected ? "Realtime alerts are active" : "Alert stream is reconnecting", {
+      description: connected ? "New incidents and API signals will appear live." : "APY will resume alerts automatically.",
+    });
+  };
+
   return (
     <div className="min-h-screen bg-[#f7f8fb] text-zinc-950">
-      <header className="sticky top-0 z-40 border-b border-zinc-200 bg-white/90 backdrop-blur-xl">
-        <div className="flex h-18 items-center gap-4 px-4 sm:px-6 lg:px-8">
-          <div className="flex min-w-[210px] items-center gap-3 border-r border-zinc-200 pr-6">
-            <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-zinc-950 text-white shadow-sm">
-              <Activity className="h-5 w-5" />
+      <header className="sticky top-0 z-40 border-b border-zinc-200 bg-white/95 backdrop-blur-xl">
+        <div className="flex min-h-16 items-center gap-4 px-4 sm:px-6 lg:px-8">
+          <a href="#overview" className="flex min-w-0 items-center gap-3 pr-2">
+            <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-zinc-950 text-white shadow-sm">
+              <Activity className="h-4 w-4" />
             </span>
-            <div className="min-w-0">
-              <p className="truncate text-base font-semibold tracking-tight">PulseRoot AI</p>
-              <p className="truncate text-xs text-zinc-500">AI Reliability Engineer</p>
+            <div className="hidden min-w-0 sm:block">
+              <p className="truncate text-sm font-semibold tracking-tight">APY</p>
+              <p className="truncate text-[11px] font-medium uppercase tracking-[0.14em] text-zinc-500">Observability</p>
             </div>
-          </div>
+          </a>
 
-          <nav className="hidden items-center gap-7 text-sm font-medium text-zinc-600 xl:flex">
-            {nav.map((item, index) => (
-              <button
-                key={item}
-                className={cn(
-                  "relative h-18 whitespace-nowrap transition hover:text-zinc-950",
-                  index === 0 && "text-zinc-950",
-                )}
+          <nav className="hidden items-center gap-1 text-sm font-medium text-zinc-600 xl:flex">
+            {nav.map((item) => (
+              <a
+                key={item.label}
+                href={item.href}
+                className="rounded-md px-3 py-2 transition hover:bg-zinc-100 hover:text-zinc-950"
               >
-                {item}
-                {index === 0 && <span className="absolute inset-x-0 bottom-0 h-0.5 rounded-full bg-zinc-950" />}
-              </button>
+                {item.label}
+              </a>
             ))}
           </nav>
 
-          <div className="ml-auto flex items-center gap-2">
-            <label className="hidden items-center gap-2 rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm text-zinc-600 shadow-sm lg:flex">
-              <Search className="h-4 w-4" />
+          <div className="ml-auto flex min-w-0 items-center gap-2">
+            <label className="hidden min-w-0 items-center gap-2 rounded-md border border-zinc-200 bg-white px-3 py-2 text-sm text-zinc-600 shadow-sm lg:flex">
+              <Search className="h-4 w-4 shrink-0" />
               <input
-                className="w-56 border-0 bg-transparent text-sm outline-none placeholder:text-zinc-400"
-                placeholder="Search incidents, APIs..."
+                className="w-52 border-0 bg-transparent text-sm outline-none placeholder:text-zinc-400 xl:w-64"
+                placeholder="Search APIs, incidents..."
                 value={search}
                 onChange={(event) => setSearch(event.target.value)}
               />
-              <span className="inline-flex items-center gap-1 rounded-md bg-zinc-100 px-1.5 py-0.5 text-xs text-zinc-500">
+              <span className="inline-flex items-center gap-1 rounded bg-zinc-100 px-1.5 py-0.5 text-[11px] text-zinc-500">
                 <Command className="h-3 w-3" />K
               </span>
             </label>
 
-            <label className="hidden items-center gap-2 rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm text-zinc-700 shadow-sm md:flex">
-              <span className={cn("h-2 w-2 rounded-full", connected ? "bg-emerald-500" : "bg-orange-500")} />
+            <span className="hidden items-center gap-2 rounded-md border border-zinc-200 bg-white px-3 py-2 text-sm text-zinc-700 shadow-sm md:flex">
+              <span className={cn("h-2 w-2 rounded-full", connected ? "bg-emerald-500" : "bg-red-500")} />
               {connected ? "Live" : "Reconnecting"}
-            </label>
+            </span>
 
             <select
-              className="h-10 rounded-lg border border-zinc-200 bg-white px-3 text-sm font-medium text-zinc-800 shadow-sm outline-none"
+              className="h-10 rounded-md border border-zinc-200 bg-white px-3 text-sm font-medium text-zinc-800 shadow-sm outline-none transition hover:border-zinc-300 focus:border-zinc-500 focus:ring-4 focus:ring-zinc-100"
               value={environment}
               onChange={(event) => setEnvironment(event.target.value as Environment)}
             >
@@ -77,28 +87,29 @@ export function AppShell({ children, connected = false }: { children: ReactNode;
               ))}
             </select>
 
-            <button className="relative flex h-10 w-10 items-center justify-center rounded-full border border-zinc-200 bg-white text-zinc-700 shadow-sm transition hover:bg-zinc-50">
+            <button
+              type="button"
+              className="relative flex h-10 w-10 items-center justify-center rounded-md border border-zinc-200 bg-white text-zinc-700 shadow-sm transition hover:border-zinc-300 hover:bg-zinc-50"
+              onClick={showNotificationState}
+              aria-label="Notification status"
+              title="Notification status"
+            >
               <Bell className="h-4 w-4" />
-              <span className="absolute right-1.5 top-1.5 h-2.5 w-2.5 rounded-full border-2 border-white bg-red-500" />
-            </button>
-
-            <button className="hidden h-10 items-center gap-2 rounded-full bg-zinc-100 pl-3 pr-2 text-sm font-semibold text-zinc-950 transition hover:bg-zinc-200 sm:flex">
-              RK
-              <ChevronDown className="h-4 w-4 text-zinc-500" />
+              <span className={cn("absolute right-2 top-2 h-2 w-2 rounded-full", connected ? "bg-emerald-500" : "bg-red-500")} />
             </button>
           </div>
         </div>
 
-        <div className="flex gap-5 overflow-x-auto border-t border-zinc-100 px-4 py-3 text-sm font-medium text-zinc-600 sm:px-6 xl:hidden">
-          {nav.map((item, index) => (
-            <button key={item} className={cn("whitespace-nowrap", index === 0 && "text-zinc-950")}>
-              {item}
-            </button>
+        <div className="flex gap-2 overflow-x-auto border-t border-zinc-100 px-4 py-2 text-sm font-medium text-zinc-600 sm:px-6 xl:hidden">
+          {nav.map((item) => (
+            <a key={item.label} href={item.href} className="whitespace-nowrap rounded-md px-3 py-1.5 hover:bg-zinc-100 hover:text-zinc-950">
+              {item.label}
+            </a>
           ))}
         </div>
       </header>
 
-      <main className="mx-auto max-w-[1840px] px-4 py-6 sm:px-6 lg:px-8">{children}</main>
+      <main className="mx-auto max-w-[1720px] px-4 py-4 sm:px-6 lg:px-8">{children}</main>
       <Toaster richColors position="top-right" theme="light" />
     </div>
   );

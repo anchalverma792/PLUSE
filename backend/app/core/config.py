@@ -4,7 +4,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
-    app_name: str = "PulseRoot AI"
+    app_name: str = "APY"
     database_url: str = "sqlite:///./pulseroot.db"
     frontend_origin: str = "http://localhost:3000"
     groq_api_key: str | None = None

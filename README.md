@@ -1,46 +1,76 @@
-# PulseRoot AI
+# APY
 
-PulseRoot AI is a simple AI incident playground.
+APY is a local AI reliability playground for monitoring demo APIs, detecting incidents, and generating concise investigation notes.
 
-The core demo is intentionally small:
+The core demo flow is:
 
 ```text
-Press a simulation button -> API issue appears -> AI explains what happened -> suggested fixes appear
+Start monitoring -> API signals stream in -> incidents are detected -> AI explains impact and next steps
 ```
 
-It runs locally with a FastAPI backend, SQLite, WebSockets, a live traffic simulator, Groq-powered explanations, and a minimal Next.js frontend.
+The app runs with a FastAPI backend, SQLite database, WebSockets, a live traffic simulator, Groq-powered analysis, and a Next.js frontend.
 
 AI functionality uses Groq only through `from groq import Groq` with `llama-3.3-70b-versatile`.
 
-## What The Demo Shows
+Repository: [anchalverma792/PLUSE](https://github.com/anchalverma792/PLUSE)
 
-- Four incident simulation buttons:
-  - Simulate Payment Failure
-  - Simulate Traffic Spike
-  - Simulate Database Crash
-  - Simulate Timeout Storm
-- Live API status in plain language
-- A large AI Incident Analysis card
-- Suggested fixes
-- A simple realtime response-time graph
-- Human-readable logs
-- One active incident card
+## Features
 
-The UI is designed to be understandable in about 10 seconds.
+- APY dashboard with live monitoring controls.
+- API health table with add, edit, disable alerts, and remove actions.
+- Seeded demo APIs for Payment, Login, Order, Notification, and Analytics.
+- Realtime activity stream over WebSockets.
+- Active incident panel with severity, affected API, confidence, and timeline.
+- AI investigation console with root-cause summary, impact, and suggested fixes.
+- Latency and error chart for the last 15 minutes.
+- Incident history with severity and API filters.
+- Environment filter for production, staging, and development APIs.
+- Assistant endpoint for asking questions about current incident/log context.
+
+## Requirements
+
+- Python 3.13 or compatible Python 3 version.
+- Node.js and npm.
+- A Groq API key for fresh AI incident analysis.
+
+The app still runs without `GROQ_API_KEY`, but fresh Groq analysis and chat responses will be disabled until the key is configured.
 
 ## Backend Setup
+
+Run these commands from the project root:
 
 ```powershell
 cd backend
 Copy-Item .env.example .env
 python -m venv .venv
 .\.venv\Scripts\python.exe -m pip install -r requirements.txt
+```
+
+Update `backend/.env`:
+
+```text
+GROQ_API_KEY=your_groq_key_here
+DATABASE_URL=sqlite:///./pulseroot.db
+FRONTEND_ORIGIN=http://localhost:3000
+SIMULATOR_ENABLED=true
+SIMULATOR_TICK_SECONDS=1.0
+```
+
+Start the backend:
+
+```powershell
 .\.venv\Scripts\python.exe -m uvicorn app.main:app --reload --host 127.0.0.1 --port 8000
 ```
 
-Set `GROQ_API_KEY` in `backend/.env` for AI incident explanations. Without a key, the app still runs locally, but fresh AI diagnosis text will not be generated.
+Backend URLs:
+
+- API base: [http://localhost:8000](http://localhost:8000)
+- Health check: [http://localhost:8000/health](http://localhost:8000/health)
+- Swagger docs: [http://localhost:8000/docs](http://localhost:8000/docs)
 
 ## Frontend Setup
+
+In a second terminal, run:
 
 ```powershell
 cd frontend
@@ -50,41 +80,88 @@ npm run dev
 
 Open [http://localhost:3000](http://localhost:3000).
 
-PowerShell may block `npm.ps1` on some Windows machines. If that happens, use `npm.cmd` instead:
+PowerShell may block `npm.ps1` on some Windows machines. If that happens, use `npm.cmd`:
 
 ```powershell
 npm.cmd install
 npm.cmd run dev
 ```
 
+The frontend expects the backend at `http://localhost:8000`. Set `NEXT_PUBLIC_API_BASE` only if the backend is running somewhere else.
+
 ## Demo Flow
 
 1. Start the backend on port `8000`.
 2. Start the frontend on port `3000`.
 3. Open [http://localhost:3000](http://localhost:3000).
-4. Click one of the simulation buttons.
-5. Watch the live status, graph, logs, active incident, AI explanation, and suggested fixes update.
+4. Click `Start Monitoring`.
+5. Watch live activity, API health, charts, incidents, AI analysis, and suggested fixes update.
+6. Use `Pause Monitoring`, `Stop Monitoring`, or `Clear State` to control the simulation.
 
-The primary story is:
+## Add A Demo API
+
+Use the `Add API` button in the APY dashboard. Example values:
 
 ```text
-Simulate issue -> detect issue -> explain issue -> suggest next steps
+API Name: Apy
+Base URL: https://api.demo.local/v1/demo
+Environment: Production
+Category: Demo
+Expected Latency: 250
+Timeout Threshold: 2000
+Monitoring Interval: 30
+Enable Alerts: checked
+```
+
+After saving, the API appears in the `API Health` table and can participate in live monitoring.
+
+## Backend API
+
+Common endpoints:
+
+```text
+GET    /health
+GET    /api/summary
+GET    /api/apis
+POST   /api/apis
+PATCH  /api/apis/{api_id}
+DELETE /api/apis/{api_id}
+GET    /api/logs
+GET    /api/incidents
+GET    /api/incidents/{incident_id}
+GET    /api/charts/traffic
+GET    /api/simulation/status
+POST   /api/simulation/start
+POST   /api/simulation/pause
+POST   /api/simulation/resume
+POST   /api/simulation/stop
+POST   /api/simulation/reset
+POST   /api/assistant/chat
+WS     /api/ws
 ```
 
 ## Project Structure
 
 ```text
 backend/
-  app/api/routes.py
-  app/services/
-  app/simulator/
-  app/models/
+  app/api/routes.py          FastAPI routes
+  app/core/config.py         Settings and environment variables
+  app/db/session.py          SQLite and SQLAlchemy session setup
+  app/models/entities.py     Database models
+  app/schemas/dto.py         Request and response schemas
+  app/services/              AI, incident, anomaly, testing, and websocket services
+  app/simulator/engine.py    Live traffic simulator
+  requirements.txt
 
 frontend/
-  app/
-  components/playground/incident-playground.tsx
-  hooks/
-  lib/
+  app/                       Next.js App Router pages
+  components/layout/         App shell and navigation
+  components/playground/     Main APY dashboard experience
+  components/ui/             Shared UI primitives
+  context/                   App-level state
+  hooks/                     Live stream hook
+  lib/                       API client, types, utilities
+  package.json
 ```
 
 ## Useful Commands
@@ -98,3 +175,10 @@ npm.cmd run build
 # Stop local servers on the default ports
 Get-NetTCPConnection -LocalPort 3000,8000 -State Listen | ForEach-Object { Stop-Process -Id $_.OwningProcess }
 ```
+
+## Notes
+
+- SQLite data is stored at `backend/pulseroot.db`.
+- The seeded APIs are created automatically on backend startup if they do not already exist.
+- `Clear State` removes generated logs, incidents, and synthetic test results, then resets seeded API health values.
+- This root `README.md` is the single README for the project.

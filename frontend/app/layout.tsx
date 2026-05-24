@@ -4,8 +4,8 @@ import { AppStateProvider } from "@/context/app-state";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "PulseRoot AI",
-  description: "A simple AI incident playground using Groq.",
+  title: "APY",
+  description: "AI-powered API observability and reliability engineering.",
 };
 
 export default function RootLayout({

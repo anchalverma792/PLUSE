@@ -81,7 +81,7 @@ class TrafficSimulator:
         self.running = True
         self.task = asyncio.create_task(self.start(tick_seconds))
         await manager.broadcast("simulation", self.status())
-        await manager.broadcast("activity", {"message": "Demo APIs started", "level": "success"})
+        await manager.broadcast("activity", {"message": "Monitoring started", "level": "success"})
         return self.status()
 
     async def start(self, tick_seconds: float) -> None:
@@ -110,19 +110,19 @@ class TrafficSimulator:
     async def pause(self) -> dict[str, Any]:
         self.paused = True
         await manager.broadcast("simulation", self.status())
-        await manager.broadcast("activity", {"message": "Demo APIs paused", "level": "warning"})
+        await manager.broadcast("activity", {"message": "Monitoring paused", "level": "warning"})
         return self.status()
 
     async def resume(self) -> dict[str, Any]:
         self.paused = False
         await manager.broadcast("simulation", self.status())
-        await manager.broadcast("activity", {"message": "Demo APIs resumed", "level": "success"})
+        await manager.broadcast("activity", {"message": "Monitoring resumed", "level": "success"})
         return self.status()
 
     async def stop_background(self) -> dict[str, Any]:
         self.stop()
         await manager.broadcast("simulation", self.status())
-        await manager.broadcast("activity", {"message": "Demo APIs stopped", "level": "info"})
+        await manager.broadcast("activity", {"message": "Monitoring stopped", "level": "info"})
         return self.status()
 
     def reset_runtime(self) -> None:
@@ -245,7 +245,7 @@ class TrafficSimulator:
 
     def _message(self, api_name: str, status: int, latency: float, error_type: str | None) -> str:
         if status == 0:
-            return f"{api_name} is unreachable from synthetic probe"
+            return f"{api_name} is unreachable from health probe"
         if error_type:
             return f"{api_name} returned {status} due to {error_type} after {latency:.0f}ms"
         if latency > 900:

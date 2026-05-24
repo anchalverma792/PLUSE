@@ -83,7 +83,7 @@ export type Incident = {
   metrics: Record<string, string | number | string[] | null>;
 };
 
-export type SyntheticTest = {
+export type SyntheticCheck = {
   id: number;
   timestamp: string;
   name: string;
@@ -101,7 +101,7 @@ export type ChartPoint = {
   errors: number;
 };
 
-export type SimulationState = {
+export type MonitoringState = {
   running: boolean;
   paused: boolean;
   active_scenarios: number;
