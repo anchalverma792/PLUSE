@@ -11,9 +11,9 @@ export function formatNumber(value: number, suffix = "") {
 
 export function severityClass(severity: string) {
   return {
-    critical: "border-rose-400/50 bg-rose-500/15 text-rose-100 shadow-rose-500/20",
-    high: "border-orange-400/50 bg-orange-500/15 text-orange-100 shadow-orange-500/20",
-    warning: "border-amber-400/50 bg-amber-500/15 text-amber-100 shadow-amber-500/20",
-    info: "border-cyan-400/50 bg-cyan-500/15 text-cyan-100 shadow-cyan-500/20",
-  }[severity] ?? "border-zinc-600 bg-zinc-900 text-zinc-200";
+    critical: "border-red-200 bg-red-50 text-red-700 shadow-red-100",
+    high: "border-orange-200 bg-orange-50 text-orange-700 shadow-orange-100",
+    warning: "border-amber-200 bg-amber-50 text-amber-700 shadow-amber-100",
+    info: "border-emerald-200 bg-emerald-50 text-emerald-700 shadow-emerald-100",
+  }[severity] ?? "border-zinc-200 bg-zinc-50 text-zinc-700";
 }

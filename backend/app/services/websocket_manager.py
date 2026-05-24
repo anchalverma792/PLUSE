@@ -36,5 +36,9 @@ class WebSocketManager:
         for websocket in disconnected:
             await self.disconnect(websocket)
 
+    async def clear_events(self) -> None:
+        async with self._lock:
+            self.recent_events.clear()
+
 
 manager = WebSocketManager()

@@ -20,6 +20,7 @@ class SimulatedApi:
     path: str
     owner: str
     base_latency: int
+    endpoint_url: str = ""
 
 
 APIS = [
@@ -44,6 +45,9 @@ SCENARIOS: dict[str, dict[str, Any]] = {
 class TrafficSimulator:
     def __init__(self) -> None:
         self.running = False
+        self.paused = False
+        self.task: asyncio.Task | None = None
+        self.tick_seconds = 1.0
         self.active_scenarios: list[tuple[str, int, str | None]] = []
         self.request_count = 0
 
@@ -51,14 +55,41 @@ class TrafficSimulator:
         for api in APIS:
             existing = db.query(ApiService).filter(ApiService.name == api.name).first()
             if not existing:
-                db.add(ApiService(name=api.name, path=api.path, owner=api.owner))
+                db.add(
+                    ApiService(
+                        name=api.name,
+                        path=api.path,
+                        owner=api.owner,
+                        endpoint_url=f"https://api.pulseroot.local{api.path}",
+                        expected_latency_ms=float(api.base_latency),
+                        timeout_threshold_ms=float(api.base_latency * 6),
+                        category=api.owner,
+                        environment="production",
+                        health_check_interval_seconds=30,
+                        monitoring_enabled=True,
+                    )
+                )
         db.commit()
 
+    async def start_background(self, tick_seconds: float) -> dict[str, Any]:
+        self.tick_seconds = tick_seconds
+        self.paused = False
+        if self.task and not self.task.done():
+            self.running = True
+            await manager.broadcast("simulation", self.status())
+            return self.status()
+        self.running = True
+        self.task = asyncio.create_task(self.start(tick_seconds))
+        await manager.broadcast("simulation", self.status())
+        await manager.broadcast("activity", {"message": "Demo APIs started", "level": "success"})
+        return self.status()
+
     async def start(self, tick_seconds: float) -> None:
-        if self.running:
-            return
         self.running = True
         while self.running:
+            if self.paused:
+                await asyncio.sleep(tick_seconds)
+                continue
             db = SessionLocal()
             try:
                 self.seed_apis(db)
@@ -71,6 +102,42 @@ class TrafficSimulator:
 
     def stop(self) -> None:
         self.running = False
+        self.paused = False
+        if self.task and not self.task.done():
+            self.task.cancel()
+        self.task = None
+
+    async def pause(self) -> dict[str, Any]:
+        self.paused = True
+        await manager.broadcast("simulation", self.status())
+        await manager.broadcast("activity", {"message": "Demo APIs paused", "level": "warning"})
+        return self.status()
+
+    async def resume(self) -> dict[str, Any]:
+        self.paused = False
+        await manager.broadcast("simulation", self.status())
+        await manager.broadcast("activity", {"message": "Demo APIs resumed", "level": "success"})
+        return self.status()
+
+    async def stop_background(self) -> dict[str, Any]:
+        self.stop()
+        await manager.broadcast("simulation", self.status())
+        await manager.broadcast("activity", {"message": "Demo APIs stopped", "level": "info"})
+        return self.status()
+
+    def reset_runtime(self) -> None:
+        self.active_scenarios = []
+        self.request_count = 0
+        self.paused = False
+
+    def status(self) -> dict[str, Any]:
+        return {
+            "running": self.running,
+            "paused": self.paused,
+            "active_scenarios": len(self.active_scenarios),
+            "request_count": self.request_count,
+            "tick_seconds": self.tick_seconds,
+        }
 
     async def trigger(self, scenario: str, api_name: str | None = None, duration: int = 18) -> dict[str, Any]:
         if scenario not in SCENARIOS:
@@ -82,8 +149,11 @@ class TrafficSimulator:
         )
         return {"scenario": scenario, "duration_ticks": duration, "target": api_name or "auto"}
 
-    async def generate_request(self, db: Session) -> LogEntry:
-        api = random.choice(APIS)
+    async def generate_request(self, db: Session) -> LogEntry | None:
+        apis = self._monitored_apis(db)
+        if not apis:
+            return None
+        api = random.choice(apis)
         scenario = self._consume_scenario(api.name)
         log = self._build_log(api, scenario)
         db.add(log)
@@ -99,6 +169,19 @@ class TrafficSimulator:
         if anomaly["is_anomaly"]:
             await incident_manager.ingest_anomaly(db, log, anomaly)
         return log
+
+    def _monitored_apis(self, db: Session) -> list[SimulatedApi]:
+        rows = db.query(ApiService).filter(ApiService.monitoring_enabled == True).all()  # noqa: E712
+        return [
+            SimulatedApi(
+                name=row.name,
+                path=row.path,
+                owner=row.owner,
+                base_latency=max(40, int(row.expected_latency_ms or 250)),
+                endpoint_url=row.endpoint_url,
+            )
+            for row in rows
+        ]
 
     def _consume_scenario(self, api_name: str) -> dict[str, Any] | None:
         if not self.active_scenarios:
@@ -181,6 +264,8 @@ class TrafficSimulator:
         api.health_score = max(22, min(100, api.health_score * 0.985 + (100 - penalty * 12) * 0.015))
         api.uptime = max(70, min(100, api.uptime - (0.04 if log.status_code >= 500 or log.status_code == 0 else -0.003)))
         api.is_online = log.status_code != 0
+        api.requests_per_minute = max(0, min(1200, api.requests_per_minute * 0.72 + random.uniform(6, 42)))
+        api.last_checked_at = datetime.utcnow()
 
     def serialize_log(self, log: LogEntry) -> dict[str, Any]:
         return {

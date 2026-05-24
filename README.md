@@ -1,39 +1,75 @@
 # PulseRoot AI
 
-AI-powered API failure detection and debugging agent. PulseRoot AI runs locally with a FastAPI backend, SQLite, WebSockets, a synthetic traffic simulator, anomaly detection, incident grouping, and a Next.js dashboard.
+PulseRoot AI is a simple AI incident playground.
+
+The core demo is intentionally small:
+
+```text
+Press a simulation button -> API issue appears -> AI explains what happened -> suggested fixes appear
+```
+
+It runs locally with a FastAPI backend, SQLite, WebSockets, a live traffic simulator, Groq-powered explanations, and a minimal Next.js frontend.
 
 AI functionality uses Groq only through `from groq import Groq` with `llama-3.3-70b-versatile`.
+
+## What The Demo Shows
+
+- Four incident simulation buttons:
+  - Simulate Payment Failure
+  - Simulate Traffic Spike
+  - Simulate Database Crash
+  - Simulate Timeout Storm
+- Live API status in plain language
+- A large AI Incident Analysis card
+- Suggested fixes
+- A simple realtime response-time graph
+- Human-readable logs
+- One active incident card
+
+The UI is designed to be understandable in about 10 seconds.
 
 ## Backend Setup
 
 ```powershell
 cd backend
 Copy-Item .env.example .env
-python -m pip install -r requirements.txt
-python -m uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+python -m venv .venv
+.\.venv\Scripts\python.exe -m pip install -r requirements.txt
+.\.venv\Scripts\python.exe -m uvicorn app.main:app --reload --host 127.0.0.1 --port 8000
 ```
 
-Set `GROQ_API_KEY` in `backend/.env` for AI root-cause analysis and chat. Without a key, the app still runs locally and reports that Groq is not configured; it does not call OpenAI or any other AI provider.
+Set `GROQ_API_KEY` in `backend/.env` for AI incident explanations. Without a key, the app still runs locally, but fresh AI diagnosis text will not be generated.
 
 ## Frontend Setup
 
 ```powershell
 cd frontend
-Copy-Item .env.example .env.local
 npm install
 npm run dev
 ```
 
-Open `http://localhost:3000`.
+Open [http://localhost:3000](http://localhost:3000).
+
+PowerShell may block `npm.ps1` on some Windows machines. If that happens, use `npm.cmd` instead:
+
+```powershell
+npm.cmd install
+npm.cmd run dev
+```
 
 ## Demo Flow
 
-1. Start the backend and frontend.
-2. Open the dashboard and watch live logs, charts, alerts, and grouped incidents.
-3. Go to Playground and trigger deployment failure, database crash, traffic spike, timeout storm, downtime, or memory leak.
-4. Open an incident detail page to review timeline, metrics, Groq analysis, and debugging suggestions.
-5. Use Testing Agent to run synthetic QA checks.
-6. Use AI Assistant to ask incident questions such as “Which API is unstable?” or “Suggest debugging steps.”
+1. Start the backend on port `8000`.
+2. Start the frontend on port `3000`.
+3. Open [http://localhost:3000](http://localhost:3000).
+4. Click one of the simulation buttons.
+5. Watch the live status, graph, logs, active incident, AI explanation, and suggested fixes update.
+
+The primary story is:
+
+```text
+Simulate issue -> detect issue -> explain issue -> suggest next steps
+```
 
 ## Project Structure
 
@@ -43,9 +79,22 @@ backend/
   app/services/
   app/simulator/
   app/models/
+
 frontend/
   app/
-  components/
+  components/playground/incident-playground.tsx
   hooks/
   lib/
+```
+
+## Useful Commands
+
+```powershell
+# Frontend checks
+cd frontend
+npm.cmd run lint
+npm.cmd run build
+
+# Stop local servers on the default ports
+Get-NetTCPConnection -LocalPort 3000,8000 -State Listen | ForEach-Object { Stop-Process -Id $_.OwningProcess }
 ```

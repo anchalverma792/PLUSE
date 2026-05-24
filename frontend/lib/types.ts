@@ -15,9 +15,30 @@ export type ApiService = {
   name: string;
   path: string;
   owner: string;
+  endpoint_url: string;
+  expected_latency_ms: number;
+  timeout_threshold_ms: number;
+  category: string;
+  environment: "production" | "staging" | "development" | string;
+  health_check_interval_seconds: number;
+  monitoring_enabled: boolean;
+  requests_per_minute: number;
+  last_checked_at: string | null;
   health_score: number;
   uptime: number;
   is_online: boolean;
+  created_at: string;
+};
+
+export type ApiServicePayload = {
+  name: string;
+  endpoint_url: string;
+  expected_latency_ms: number;
+  timeout_threshold_ms: number;
+  category: string;
+  environment: string;
+  health_check_interval_seconds: number;
+  monitoring_enabled: boolean;
 };
 
 export type LogEntry = {
@@ -78,4 +99,19 @@ export type ChartPoint = {
   requests: number;
   latency: number;
   errors: number;
+};
+
+export type SimulationState = {
+  running: boolean;
+  paused: boolean;
+  active_scenarios: number;
+  request_count: number;
+  tick_seconds: number;
+};
+
+export type ActivityItem = {
+  id: string;
+  timestamp: string;
+  message: string;
+  level: "success" | "warning" | "error" | "info";
 };

@@ -4,15 +4,28 @@ from fastapi import APIRouter, Depends, HTTPException, WebSocket, WebSocketDisco
 from sqlalchemy import case, desc, func
 from sqlalchemy.orm import Session
 
+from app.core.config import get_settings
 from app.db.session import get_db
 from app.models import ApiService, Incident, LogEntry, SyntheticTest
-from app.schemas.dto import ChatRequest, ChatResponse, DashboardSummary, IncidentOut, LogOut, PlaygroundRequest
+from app.schemas.dto import (
+    ApiServiceCreate,
+    ApiServiceOut,
+    ApiServiceUpdate,
+    ChatRequest,
+    ChatResponse,
+    DashboardSummary,
+    IncidentOut,
+    LogOut,
+    PlaygroundRequest,
+    SimulationState,
+)
 from app.services.ai_service import ai_service
 from app.services.testing_agent import testing_agent
 from app.services.websocket_manager import manager
 from app.simulator.engine import SCENARIOS, traffic_simulator
 
 router = APIRouter()
+settings = get_settings()
 
 
 @router.websocket("/ws")
@@ -45,9 +58,74 @@ def summary(db: Session = Depends(get_db)) -> DashboardSummary:
     )
 
 
-@router.get("/apis")
-def api_services(db: Session = Depends(get_db)):
-    return db.query(ApiService).order_by(ApiService.name).all()
+@router.get("/apis", response_model=list[ApiServiceOut])
+def api_services(environment: str | None = None, db: Session = Depends(get_db)) -> list[ApiService]:
+    query = db.query(ApiService)
+    if environment:
+        query = query.filter(ApiService.environment == environment)
+    return query.order_by(ApiService.name).all()
+
+
+@router.post("/apis", response_model=ApiServiceOut)
+async def create_api_service(payload: ApiServiceCreate, db: Session = Depends(get_db)) -> ApiService:
+    existing = db.query(ApiService).filter(ApiService.name == payload.name).first()
+    if existing:
+        raise HTTPException(status_code=409, detail="API name already exists")
+    path = payload.endpoint_url
+    api_service = ApiService(
+        name=payload.name.strip(),
+        path=path,
+        owner=payload.category.strip() or "Core",
+        endpoint_url=payload.endpoint_url.strip(),
+        expected_latency_ms=payload.expected_latency_ms,
+        timeout_threshold_ms=payload.timeout_threshold_ms,
+        category=payload.category.strip() or "Core",
+        environment=payload.environment,
+        health_check_interval_seconds=payload.health_check_interval_seconds,
+        monitoring_enabled=payload.monitoring_enabled,
+    )
+    db.add(api_service)
+    db.commit()
+    db.refresh(api_service)
+    await manager.broadcast("api", serialize_api(api_service))
+    await manager.broadcast("activity", {"message": f"{api_service.name} added to monitoring", "level": "success"})
+    return api_service
+
+
+@router.patch("/apis/{api_id}", response_model=ApiServiceOut)
+async def update_api_service(api_id: int, payload: ApiServiceUpdate, db: Session = Depends(get_db)) -> ApiService:
+    api_service = db.get(ApiService, api_id)
+    if not api_service:
+        raise HTTPException(status_code=404, detail="API not found")
+    update_data = payload.model_dump(exclude_unset=True)
+    if "name" in update_data:
+        duplicate = db.query(ApiService).filter(ApiService.name == update_data["name"], ApiService.id != api_id).first()
+        if duplicate:
+            raise HTTPException(status_code=409, detail="API name already exists")
+    for key, value in update_data.items():
+        setattr(api_service, key, value)
+        if key == "endpoint_url":
+            api_service.path = value
+        if key == "category":
+            api_service.owner = value
+    db.commit()
+    db.refresh(api_service)
+    await manager.broadcast("api", serialize_api(api_service))
+    await manager.broadcast("activity", {"message": f"{api_service.name} settings updated", "level": "info"})
+    return api_service
+
+
+@router.delete("/apis/{api_id}")
+async def delete_api_service(api_id: int, db: Session = Depends(get_db)) -> dict[str, str]:
+    api_service = db.get(ApiService, api_id)
+    if not api_service:
+        raise HTTPException(status_code=404, detail="API not found")
+    name = api_service.name
+    db.delete(api_service)
+    db.commit()
+    await manager.broadcast("api_deleted", {"id": api_id, "name": name})
+    await manager.broadcast("activity", {"message": f"{name} removed from monitoring", "level": "warning"})
+    return {"status": "deleted"}
 
 
 @router.get("/logs", response_model=list[LogOut])
@@ -97,7 +175,53 @@ def incident_detail(incident_id: int, db: Session = Depends(get_db)) -> Incident
 async def trigger_playground(request: PlaygroundRequest):
     if request.scenario not in SCENARIOS:
         raise HTTPException(status_code=400, detail=f"Unknown scenario. Use one of: {', '.join(SCENARIOS)}")
-    return await traffic_simulator.trigger(request.scenario)
+    await traffic_simulator.start_background(settings.simulator_tick_seconds)
+    return await traffic_simulator.trigger(request.scenario, api_name=request.api_name)
+
+
+@router.get("/simulation/status", response_model=SimulationState)
+def simulation_status() -> dict:
+    return traffic_simulator.status()
+
+
+@router.post("/simulation/start", response_model=SimulationState)
+async def simulation_start() -> dict:
+    return await traffic_simulator.start_background(settings.simulator_tick_seconds)
+
+
+@router.post("/simulation/pause", response_model=SimulationState)
+async def simulation_pause() -> dict:
+    return await traffic_simulator.pause()
+
+
+@router.post("/simulation/resume", response_model=SimulationState)
+async def simulation_resume() -> dict:
+    return await traffic_simulator.resume()
+
+
+@router.post("/simulation/stop", response_model=SimulationState)
+async def simulation_stop() -> dict:
+    return await traffic_simulator.stop_background()
+
+
+@router.post("/simulation/reset", response_model=SimulationState)
+async def simulation_reset(db: Session = Depends(get_db)) -> dict:
+    traffic_simulator.stop()
+    traffic_simulator.reset_runtime()
+    db.query(LogEntry).delete()
+    db.query(Incident).delete()
+    db.query(SyntheticTest).delete()
+    for api_service in db.query(ApiService).all():
+        api_service.health_score = 99.0
+        api_service.uptime = 99.9
+        api_service.is_online = True
+        api_service.requests_per_minute = 0
+        api_service.last_checked_at = None
+    db.commit()
+    await manager.broadcast("reset", {"status": "ok"})
+    await manager.broadcast("simulation", traffic_simulator.status())
+    await manager.broadcast("activity", {"message": "Simulation data reset", "level": "info"})
+    return traffic_simulator.status()
 
 
 @router.post("/testing/run")
@@ -164,3 +288,25 @@ def traffic_chart(db: Session = Depends(get_db)):
         {"time": row.minute, "requests": row.requests, "latency": round(row.latency or 0, 2), "errors": row.errors or 0}
         for row in rows
     ]
+
+
+def serialize_api(api_service: ApiService) -> dict:
+    return {
+        "id": api_service.id,
+        "name": api_service.name,
+        "path": api_service.path,
+        "owner": api_service.owner,
+        "endpoint_url": api_service.endpoint_url,
+        "expected_latency_ms": api_service.expected_latency_ms,
+        "timeout_threshold_ms": api_service.timeout_threshold_ms,
+        "category": api_service.category,
+        "environment": api_service.environment,
+        "health_check_interval_seconds": api_service.health_check_interval_seconds,
+        "monitoring_enabled": api_service.monitoring_enabled,
+        "requests_per_minute": api_service.requests_per_minute,
+        "last_checked_at": api_service.last_checked_at.isoformat() if api_service.last_checked_at else None,
+        "health_score": api_service.health_score,
+        "uptime": api_service.uptime,
+        "is_online": api_service.is_online,
+        "created_at": api_service.created_at.isoformat(),
+    }
