@@ -14,6 +14,29 @@ AI functionality uses Groq only through `from groq import Groq` with `llama-3.3-
 
 Repository: [anchalverma792/PLUSE](https://github.com/anchalverma792/PLUSE)
 
+## Live Deployment
+
+- Website: [https://apy-frontend-production.up.railway.app](https://apy-frontend-production.up.railway.app)
+- Backend API: [https://apy-backend-production.up.railway.app](https://apy-backend-production.up.railway.app)
+
+## Screenshots
+
+### Dashboard Overview
+
+![APY dashboard overview](docs/screenshots/dashboard-overview.png)
+
+### AI Investigation Console
+
+![APY AI investigation console](docs/screenshots/ai-investigation-console.png)
+
+### API Health And Incident History
+
+![APY API health and incident history](docs/screenshots/api-health-history.png)
+
+### Add API Modal
+
+![APY add API modal](docs/screenshots/add-api-modal.png)
+
 ## Features
 
 - APY dashboard with live monitoring controls.
@@ -180,7 +203,7 @@ Get-NetTCPConnection -LocalPort 3000,8000 -State Listen | ForEach-Object { Stop-
 
 APY is deployment-ready for:
 
-- Frontend: Vercel
+- Frontend: Railway or Vercel
 - Backend: Railway
 - Production database: Railway PostgreSQL
 
@@ -199,8 +222,8 @@ Required Railway variables:
 ```text
 DATABASE_URL=<Railway PostgreSQL DATABASE_URL>
 GROQ_API_KEY=<your Groq key>
-FRONTEND_ORIGIN=https://<your-vercel-app>.vercel.app
-EXTRA_FRONTEND_ORIGINS=
+FRONTEND_ORIGIN=https://<your-primary-frontend-domain>
+EXTRA_FRONTEND_ORIGINS=https://<optional-additional-frontend-domain>
 ALLOW_VERCEL_ORIGINS=true
 ALLOW_CLOUDFLARE_TUNNEL_ORIGINS=false
 SIMULATOR_ENABLED=true
@@ -208,6 +231,16 @@ SIMULATOR_TICK_SECONDS=1.0
 ```
 
 The backend supports Railway's `postgres://` and `postgresql://` URLs automatically.
+
+### Railway Frontend
+
+Deploy from the `frontend/` directory. Railway should use the included `frontend/railway.json` and Node version from `frontend/.node-version`.
+
+Required Railway variable:
+
+```text
+NEXT_PUBLIC_API_BASE=https://<your-railway-backend>.up.railway.app
+```
 
 ### Vercel Frontend
 
