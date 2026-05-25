@@ -176,6 +176,66 @@ npm.cmd run build
 Get-NetTCPConnection -LocalPort 3000,8000 -State Listen | ForEach-Object { Stop-Process -Id $_.OwningProcess }
 ```
 
+## Production Deployment
+
+APY is deployment-ready for:
+
+- Frontend: Vercel
+- Backend: Railway
+- Production database: Railway PostgreSQL
+
+Deploy the backend first, then set the frontend API URL to the backend's public Railway URL.
+
+### Railway Backend
+
+Deploy from the `backend/` directory. Railway should use:
+
+```text
+Start command: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+```
+
+Required Railway variables:
+
+```text
+DATABASE_URL=<Railway PostgreSQL DATABASE_URL>
+GROQ_API_KEY=<your Groq key>
+FRONTEND_ORIGIN=https://<your-vercel-app>.vercel.app
+EXTRA_FRONTEND_ORIGINS=
+ALLOW_VERCEL_ORIGINS=true
+ALLOW_CLOUDFLARE_TUNNEL_ORIGINS=false
+SIMULATOR_ENABLED=true
+SIMULATOR_TICK_SECONDS=1.0
+```
+
+The backend supports Railway's `postgres://` and `postgresql://` URLs automatically.
+
+### Vercel Frontend
+
+Deploy from the `frontend/` directory. Set this Vercel environment variable:
+
+```text
+NEXT_PUBLIC_API_BASE=https://<your-railway-backend>.up.railway.app
+```
+
+The frontend derives WebSocket URLs from `NEXT_PUBLIC_API_BASE`, so an HTTPS backend becomes `wss://.../api/ws` automatically.
+
+### Production Verification
+
+After both deployments are live:
+
+```powershell
+Invoke-WebRequest https://<your-railway-backend>.up.railway.app/health
+Invoke-WebRequest https://<your-railway-backend>.up.railway.app/api/summary
+```
+
+Then open the Vercel URL and verify:
+
+- The header status changes from `Reconnecting` to `Live`.
+- `Add API` accepts a custom API name and URL.
+- The new API appears in `API Health`.
+- `Start Monitoring` streams activity and chart updates.
+- Incident analysis and suggested fixes update as events arrive.
+
 ## Notes
 
 - SQLite data is stored at `backend/pulseroot.db`.

@@ -36,4 +36,5 @@ Thumbs.db
 # Local tooling
 .vercel/
 .codex-run/
+.cloudflare-tunnel/
 *.tsbuildinfo
